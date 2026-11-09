@@ -1,0 +1,4 @@
+/* Tailwindの基本スタイルを読み込む3行を追加 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
