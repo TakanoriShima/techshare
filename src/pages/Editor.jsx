@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../contexts/AuthContext';
 
-// 記事作成ページ（編集は工程6で実装する）
+// 記事の作成・編集ページ（1つのコンポーネントで両方を兼ねる）
 export default function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,67 +15,116 @@ export default function Editor() {
   // 入力欄の値を State で管理する（制御されたコンポーネント）
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [article, setArticle] = useState(null); // 編集する記事（投稿者の確認に使う）
+  const [isLoading, setIsLoading] = useState(isEditMode);
+  const [loadError, setLoadError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false); // 保存中は二重送信を防ぐ
   const [submitError, setSubmitError] = useState(null);
 
-  // 未ログインならトップページへリダイレクト（作成・編集ともにログインが必要）
   useEffect(() => {
+    // 未ログインならトップページへリダイレクト（作成・編集ともにログインが必要）
     if (!user) {
       navigate('/');
+      return;
     }
-  }, [user, navigate]);
+
+    // 作成モードでは記事を取得しない
+    if (!isEditMode) return;
+
+    // 編集モードのときだけ、既存の記事を取得してフォームに入れる
+    const fetchArticle = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/articles/${id}`);
+        if (!response.ok) throw new Error('エラーが発生しました');
+        const data = await response.json();
+        // 投稿者本人でなければ編集させずにトップページへ戻す
+        if (data.author !== user.name) {
+          navigate('/');
+          return;
+        }
+        setArticle(data);
+        setTitle(data.title);
+        setContent(data.content);
+      } catch (err) {
+        console.error(err);
+        setLoadError('記事を読み込めませんでした。記事が存在しないか、通信に失敗しました。');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchArticle();
+  }, [id, isEditMode, user, navigate]);
+
+  // 編集できるのは、取得した記事の投稿者とログインユーザーが一致するときだけ
+  const isOwner = Boolean(article && user && article.author === user.name);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // フォーム送信によるページのリロードを止める
-    if (isEditMode || isSubmitting) return; // 編集画面からは保存しない（工程6で実装）・二重送信を防ぐ
+    if (isSubmitting) return; // 二重送信を防ぐ
+    if (isEditMode && !isOwner) return; // 他人の記事は更新しない
     // 空白だけの入力も空として扱う
     if (!title.trim() || !content.trim()) return alert('タイトルと本文を入力してください');
 
-    const articleData = {
-      title: title.trim(),
-      content: content.trim(),
-      author: user.name,
-      createdAt: new Date().toISOString().split('T')[0], // 例："2026-05-14"
-    };
+    // 作成時は4項目、編集時はタイトルと本文だけを送る（作成日 createdAt は変えない）
+    const articleData = isEditMode
+      ? { title: title.trim(), content: content.trim() }
+      : {
+          title: title.trim(),
+          content: content.trim(),
+          author: user.name,
+          createdAt: new Date().toISOString().split('T')[0], // 例："2026-05-14"
+        };
+    const url = isEditMode
+      ? `${import.meta.env.VITE_API_URL}/articles/${id}`
+      : `${import.meta.env.VITE_API_URL}/articles`;
+    const method = isEditMode ? 'PATCH' : 'POST';
 
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/articles`, {
-        method: 'POST',
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(articleData),
       });
       if (!response.ok) throw new Error('エラーが発生しました');
-      navigate('/'); // 投稿できたら記事一覧へ戻る
+      navigate('/'); // 保存できたら記事一覧へ戻る
     } catch (err) {
       console.error(err);
-      setSubmitError('記事の投稿に失敗しました');
+      setSubmitError(isEditMode ? '記事の更新に失敗しました' : '記事の投稿に失敗しました');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 編集機能は工程6で実装する（それまでは仮表示）
+  // 編集モードでは、記事の読み込みと本人確認が終わるまでフォームを表示しない
   if (isEditMode) {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">記事の編集（工程6で実装）</h1>
-        <p className="mt-2 text-gray-600">記事ID：{id}</p>
-      </div>
-    );
+    if (isLoading) return <p className="text-gray-500">読み込み中...</p>;
+    if (loadError) {
+      return (
+        <div>
+          <p className="text-red-600">{loadError}</p>
+          <Link to="/" className="inline-block mt-4 text-blue-600 hover:underline">← 記事一覧へ戻る</Link>
+        </div>
+      );
+    }
+    if (!isOwner) return null;
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 md:h-[80vh]">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">新規記事作成</h1>
+        <h1 className="text-2xl font-bold">{isEditMode ? '記事の編集' : '新規記事作成'}</h1>
         <button
           type="submit"
           disabled={isSubmitting}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-bold disabled:opacity-50"
         >
-          {isSubmitting ? '投稿中...' : '投稿する'}
+          {isSubmitting
+            ? (isEditMode ? '更新中...' : '投稿中...')
+            : (isEditMode ? '更新する' : '投稿する')}
         </button>
       </div>
 
