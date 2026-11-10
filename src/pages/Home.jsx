@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import ArticleCard from '../components/organisms/ArticleCard';
+import SearchBar from '../components/molecules/SearchBar';
+import { useSearch } from '../hooks/useSearch';
 
 // 記事一覧ページ
 export default function Home() {
@@ -7,6 +9,8 @@ export default function Home() {
   const [articles, setArticles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 検索ワードと絞り込み結果はカスタムフックから受け取る
+  const { searchQuery, setSearchQuery, filteredArticles } = useSearch(articles);
 
   useEffect(() => {
     // useEffect の関数自体には async を付けられないため、中で非同期関数を定義して呼び出す
@@ -31,13 +35,18 @@ export default function Home() {
   if (error) return <p className="text-red-600">{error}</p>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {articles.map((article) => (
-        <ArticleCard key={article.id} article={article} />
-      ))}
-      {articles.length === 0 && (
-        <p className="text-gray-500">記事が見つかりません。</p>
-      )}
+    <div>
+      <div className="mb-8">
+        <SearchBar value={searchQuery} onChange={setSearchQuery} />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {filteredArticles.map((article) => (
+          <ArticleCard key={article.id} article={article} />
+        ))}
+        {filteredArticles.length === 0 && (
+          <p className="text-gray-500">記事が見つかりません。</p>
+        )}
+      </div>
     </div>
   );
 }
