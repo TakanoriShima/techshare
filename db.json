@@ -1,0 +1,18 @@
+{
+  "articles": [
+    {
+      "id": "1",
+      "title": "React Hooksの完全理解",
+      "content": "## useStateとは\n状態を管理するためのフックです。\n\n## useEffectとは\nコンポーネントの表示後に処理を実行するためのフックです。\n\n- useStateで値を保持する\n- useEffectでデータを取得する\n- 依存配列で実行タイミングを決める\n\nhooksはreactの関数コンポーネントで使います。",
+      "author": "Tech Taro",
+      "createdAt": "2026-05-14"
+    },
+    {
+      "id": "2",
+      "title": "Tailwind CSSで爆速コーディング",
+      "content": "## Tailwind CSSとは\nクラス名を組み合わせてデザインするCSSフレームワークです。\n\n- bg-blue-500で背景を青にする\n- p-4で余白をあける\n- md:で画面サイズごとに切り替える",
+      "author": "Front Engineer",
+      "createdAt": "2026-05-15"
+    }
+  ]
+}
