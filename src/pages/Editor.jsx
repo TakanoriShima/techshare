@@ -99,6 +99,9 @@ export default function Editor() {
     }
   };
 
+  // 未ログインのときはフォームを表示しない（トップページへのリダイレクトは useEffect で行う）
+  if (!user) return null;
+
   // 編集モードでは、記事の読み込みと本人確認が終わるまでフォームを表示しない
   if (isEditMode) {
     if (isLoading) return <p className="text-gray-500">読み込み中...</p>;
